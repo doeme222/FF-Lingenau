@@ -1,0 +1,50 @@
+
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Feuerwehrkarte Basis</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <style>
+    html,body,#map{height:100%;margin:0}
+    #topbar{position:fixed;top:10px;left:10px;z-index:1000;
+      background:white;padding:8px;border-radius:6px;box-shadow:0 2px 6px rgba(0,0,0,.2)}
+    .btn{padding:6px 10px;border:1px solid #777;border-radius:4px;cursor:pointer;background:#eee}
+  </style>
+</head>
+<body>
+<div id="topbar">
+  <button id="add" class="btn">Marker hinzufügen</button>
+  <button id="loc" class="btn">Meine Position</button>
+</div>
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+let map = L.map('map').setView([47.45,9.92], 13);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution:'© OpenStreetMap'
+}).addTo(map);
+
+let adding=false;
+document.getElementById('add').onclick=()=>{ adding=!adding; };
+
+map.on('click', e=>{
+  if(!adding) return;
+  let m=L.marker(e.latlng).addTo(map);
+  m.bindPopup("Hydrant<br>"+e.latlng.lat.toFixed(5)+", "+e.latlng.lng.toFixed(5));
+  adding=false;
+});
+
+document.getElementById('loc').onclick=()=>{
+  if(!navigator.geolocation) return alert("Keine Geolocation");
+  navigator.geolocation.getCurrentPosition(pos=>{
+    let p=[pos.coords.latitude,pos.coords.longitude];
+    L.circle(p,{radius:8,color:"blue"}).addTo(map);
+    map.setView(p,16);
+  });
+};
+</script>
+</body>
+</html>
