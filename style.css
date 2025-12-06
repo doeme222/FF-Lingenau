@@ -19,3 +19,20 @@ html,body{height:100%;margin:0;padding:0;font-family:Arial,Helvetica,sans-serif}
   #panel{width:44%}
   #topbar{left:6px;right:6px}
 }
+/* Panel eingeklappt: nur kleiner Balken oben */
+#panel.collapsed{
+  width: 200px;
+  height: 36px;
+  overflow: hidden;
+  padding: 6px;
+  display: block;
+  transition: height 0.25s ease;
+}
+#panel.collapsed h3{ display:none; }
+#panel.collapsed #listToCheck, #panel.collapsed #listConfirmed, #panel.collapsed input, #panel.collapsed .section { display:none; }
+
+/* Panel-Toggle Button Styling (oben rechts neben Topbar-Buttons) */
+#panelToggleBtn{ padding:6px 10px; border-radius:6px; background:#fff; border:1px solid #ccc; cursor:pointer; }
+
+/* Damit Marker beim kleinen Zoom nicht zu dominant sind */
+.leaflet-marker-icon { transition: transform 0.15s linear; }
