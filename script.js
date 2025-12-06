@@ -1,22 +1,16 @@
-/* -----------------------------------------------------------
-   FEUERWEHRKARTE B3 – SCRIPT.JS (TEIL 1 + TEIL 2)
-   Enthält: Grundlogik + Layer + Datenmodell + Rendering +
-            Popup (Verschieben/Löschen/Entfernung) + Suche/Liste
------------------------------------------------------------ */
+/* FEUERWEHRKARTE B3 – script.js (mit automatischem GeoJSON-Load) */
+/* Enthält Teile 1+2 plus automatisches Laden von hydranten.geojson, 
+   falls localStorage noch leer ist. */
 
-/* ---------- Karte & Basiskacheln ---------- */
 let map = L.map('map').setView([47.45, 9.92], 13);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '© OpenStreetMap-Mitwirkende'
 }).addTo(map);
 
-/* ---------- Datenmodell ---------- */
-let data = {
-  toCheck: [],     // Hydranten zur Überprüfung
-  confirmed: []    // Bestätigte Hydranten
-};
+/* Datenmodell */
+let data = { toCheck: [], confirmed: [] };
 
-/* ---------- Icons (rot = prüfen, grün = bestätigt) ---------- */
+/* Icons */
 const iconRed = L.divIcon({
   html: `<svg width="28" height="28" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#d9534f" stroke="#000"/></svg>`,
   iconSize: [28, 28], iconAnchor: [14, 28]
@@ -26,14 +20,12 @@ const iconGreen = L.divIcon({
   iconSize: [28, 28], iconAnchor: [14, 28]
 });
 
-/* ---------- Layergruppen ---------- */
+/* Layergruppen */
 let layerToCheck = L.layerGroup().addTo(map);
 let layerConfirmed = L.layerGroup().addTo(map);
 
-/* ---------- LocalStorage (load/save) ---------- */
-function saveData() {
-  localStorage.setItem("feuerwehr_b3_data", JSON.stringify(data));
-}
+/* LocalStorage */
+function saveData() { localStorage.setItem("feuerwehr_b3_data", JSON.stringify(data)); }
 function loadData() {
   let raw = localStorage.getItem("feuerwehr_b3_data");
   if (raw) {
@@ -42,7 +34,7 @@ function loadData() {
   }
 }
 
-/* ---------- Hilfsfunktionen ---------- */
+/* Helper functions */
 function escapeHtml(s){ return (s||'').toString().replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function haversine(lat1, lon1, lat2, lon2){
   const R = 6371000; const toRad = Math.PI/180;
@@ -52,28 +44,22 @@ function haversine(lat1, lon1, lat2, lon2){
   return R * c;
 }
 
-/* ---------- Render-Funktionen ---------- */
+/* Render */
 function renderAll(){
   layerToCheck.clearLayers(); layerConfirmed.clearLayers();
   document.getElementById('listToCheck').innerHTML = ''; 
   document.getElementById('listConfirmed').innerHTML = '';
   data.toCheck.forEach((p,i)=> renderPoint(p,'toCheck',i));
   data.confirmed.forEach((p,i)=> renderPoint(p,'confirmed',i));
-  attachListClickHandlers(); // sorgt dafür, dass Listen klickbar sind
+  attachListClickHandlers();
 }
 
 function renderPoint(p, type, index){
   const icon = (type==='confirmed') ? iconGreen : iconRed;
   const group = (type==='confirmed') ? layerConfirmed : layerToCheck;
-
-  // Marker
   const marker = L.marker([p.lat, p.lng], { icon }).addTo(group);
-
-  // Popup-HTML (Buttons rufen globale Funktionen auf)
   const popupHtml = makePopupHtml(p, type, index);
   marker.bindPopup(popupHtml);
-
-  // Listenelement
   const el = document.createElement('div');
   el.className = 'list-item';
   el.dataset.type = type;
@@ -82,10 +68,8 @@ function renderPoint(p, type, index){
   document.getElementById(type==='toCheck'?'listToCheck':'listConfirmed').appendChild(el);
 }
 
-/* Popup-HTML-Erzeugung */
 function makePopupHtml(p, type, index){
   const btnMoveLabel = (type==='toCheck') ? 'Als bestätigt markieren' : 'Zur Überprüfung zurück';
-  // Buttons rufen window-Funktionen auf, damit sie aus Popup heraus funktionieren
   return `<b>${escapeHtml(p.name||'Hydrant')}</b><br>
           ${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}<br><br>
           <button onclick="moveHydrant('${type}',${index})">${btnMoveLabel}</button>
@@ -93,8 +77,7 @@ function makePopupHtml(p, type, index){
           <button onclick="distanceTo(${p.lat},${p.lng})">Entfernung</button>`;
 }
 
-/* ---------- Interaktion: Verschieben / Löschen / Entfernung ---------- */
-/* Verschiebt einen Hydranten in den jeweils anderen Layer */
+/* Actions */
 window.moveHydrant = function(type, index){
   const src = (type==='toCheck') ? data.toCheck : data.confirmed;
   if(!src || !src[index]) return alert('Eintrag nicht gefunden');
@@ -103,7 +86,6 @@ window.moveHydrant = function(type, index){
   saveData(); renderAll();
 };
 
-/* Löscht einen Hydranten */
 window.deleteHydrant = function(type, index){
   if(!confirm('Eintrag löschen?')) return;
   const arr = (type==='toCheck') ? data.toCheck : data.confirmed;
@@ -111,7 +93,6 @@ window.deleteHydrant = function(type, index){
   saveData(); renderAll();
 };
 
-/* Entfernung (Luftlinie) zur aktuellen Position anzeigen */
 window.distanceTo = function(lat,lng){
   if(!currentPos) return alert('Bitte zuerst "Meine Position" drücken.');
   const d = haversine(currentPos.lat, currentPos.lng, lat, lng);
@@ -119,7 +100,7 @@ window.distanceTo = function(lat,lng){
   else alert('Luftlinie: ' + Math.round(d) + ' m');
 };
 
-/* ---------- Suchfunktion (Filter der Listenelemente) ---------- */
+/* Search */
 document.getElementById('search')?.addEventListener('input', function(e){
   const q = (e.target.value || '').toLowerCase();
   document.querySelectorAll('.list-item').forEach(div=>{
@@ -128,7 +109,6 @@ document.getElementById('search')?.addEventListener('input', function(e){
   });
 });
 
-/* ---------- Listen-Click-Handler (Fokus auf Karte) ---------- */
 function attachListClickHandlers(){
   document.querySelectorAll('.list-item').forEach(div=>{
     div.onclick = function(){
@@ -141,11 +121,38 @@ function attachListClickHandlers(){
   });
 }
 
-/* ---------- Basis: Laden + Rendern ---------- */
+/* Load existing data, then if empty load hydranten.geojson from server */
 loadData();
-renderAll();
+if((!data.toCheck || data.toCheck.length===0) && (!data.confirmed || data.confirmed.length===0)){
+  // try to fetch hydranten.geojson from site root
+  fetch('hydranten.geojson')
+    .then(r=>{
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      return r.json();
+    })
+    .then(geo=>{
+      if(geo && geo.type==='FeatureCollection' && Array.isArray(geo.features)){
+        geo.features.forEach(f=>{
+          if(f.geometry && f.geometry.type==='Point'){
+            const [lng,lat] = f.geometry.coordinates;
+            const name = (f.properties && (f.properties.name||f.properties.NOTE||f.properties.note)) || 'Hydrant';
+            data.toCheck.push({ name, lat, lng, created: new Date().toISOString() });
+          }
+        });
+        saveData();
+        renderAll();
+      } else {
+        console.warn('Keine gültige GeoJSON geliefert');
+      }
+    })
+    .catch(err=>{
+      console.warn('hydranten.geojson konnte nicht geladen werden:', err);
+    });
+} else {
+  renderAll();
+}
 
-/* ---------- Position (GPS) ---------- */
+/* Position */
 let currentPos = null;
 document.getElementById('locBtn').addEventListener('click', ()=>{
   if(!navigator.geolocation) return alert('Geolocation nicht unterstützt');
@@ -156,7 +163,7 @@ document.getElementById('locBtn').addEventListener('click', ()=>{
   }, err=>{ alert('Position nicht verfügbar: ' + err.message); });
 });
 
-/* ---------- Marker hinzufügen (einfacher Modus) ---------- */
+/* Adding markers */
 let adding = false;
 const addBtn = document.getElementById('addBtn');
 addBtn.addEventListener('click', ()=>{
@@ -165,7 +172,6 @@ addBtn.addEventListener('click', ()=>{
   if(adding) alert('Klicke jetzt auf die Karte, um den Hydranten zu setzen.');
 });
 
-/* Klick auf Karte -> Hydranten erzeugen */
 map.on('click', function(e){
   if(!adding) return;
   const name = prompt('Name des Hydranten:','Hydrant');
@@ -176,5 +182,40 @@ map.on('click', function(e){
   adding = false; addBtn.textContent = '➕ Hydrant setzen';
 });
 
-/* ---------- Expose small API for console debugging ---------- */
+/* Export/Import (basic) */
+document.getElementById('exportBtn')?.addEventListener('click', ()=>{
+  const features = [];
+  data.toCheck.forEach(p=> features.push({ type:'Feature', properties:{layer:'toCheck', name:p.name, created:p.created}, geometry:{type:'Point', coordinates:[p.lng,p.lat]} }));
+  data.confirmed.forEach(p=> features.push({ type:'Feature', properties:{layer:'confirmed', name:p.name, created:p.created}, geometry:{type:'Point', coordinates:[p.lng,p.lat]} }));
+  const geo = { type:'FeatureCollection', features };
+  const blob = new Blob([JSON.stringify(geo,null,2)], { type:'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download='hydranten_export.geojson'; a.click();
+});
+
+document.getElementById('importBtn')?.addEventListener('click', ()=> document.getElementById('fileInput').click());
+document.getElementById('fileInput')?.addEventListener('change', function(ev){
+  const f = ev.target.files[0];
+  if(!f) return;
+  const r = new FileReader();
+  r.onload = ()=> {
+    try {
+      const geo = JSON.parse(r.result);
+      if(geo.type==='FeatureCollection'){
+        geo.features.forEach(fe=>{
+          if(fe.geometry && fe.geometry.type==='Point'){
+            const [lng,lat] = fe.geometry.coordinates;
+            const layer = fe.properties && fe.properties.layer==='confirmed' ? 'confirmed' : 'toCheck';
+            const name = fe.properties && (fe.properties.name||fe.properties.NOTE||fe.properties.note) || 'Hydrant';
+            data[layer].push({ name, lat, lng, created: new Date().toISOString() });
+          }
+        });
+        saveData(); renderAll();
+        alert('Import abgeschlossen');
+      } else alert('Keine gültige GeoJSON-Datei');
+    } catch(e){ alert('Fehler beim Einlesen: '+e.message); }
+  };
+  r.readAsText(f);
+});
+
+/* Expose for debugging */
 window.__fw = { data, renderAll, saveData, loadData };
